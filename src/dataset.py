@@ -5,6 +5,7 @@ import torch
 import cv2
 from monai.transforms import Compose, Lambdad, Resized, EnsureTyped
 from monai.data import CacheDataset, DataLoader
+from torch.utils.data import Dataset
 
 def wrapper_load_grayscale_tiff(channel=1):
     """
@@ -190,3 +191,32 @@ class ICRDataset:
                 else None
             )
         )
+
+
+class HFMonaiWrapper(Dataset):
+    def __init__(self, monai_dataset, feature_extractor, transforms=None):
+        self.monai_dataset = monai_dataset
+        self.feature_extractor = feature_extractor
+        self.transforms = transforms
+
+    def __len__(self):
+        return len(self.monai_dataset)
+
+    def __getitem__(self, idx):
+        sample = self.monai_dataset[idx]
+
+        # Apply MONAI transforms 
+        if self.transforms:
+            sample = self.transforms(sample)
+
+        image = sample["image"]  
+        label = sample["label"] 
+
+        # Convert label to 0 or 1
+        label = torch.where(label > 50, torch.tensor(1, dtype=torch.long), torch.tensor(0, dtype=torch.long)) 
+
+        # SegFormer FeatureExtractor
+        encoded = self.feature_extractor(images=image, return_tensors="pt")
+        pixel_values = encoded["pixel_values"].squeeze(0)
+
+        return {"pixel_values": pixel_values, "labels": label}
