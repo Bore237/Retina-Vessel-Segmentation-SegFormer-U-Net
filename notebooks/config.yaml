@@ -10,10 +10,9 @@ apply_clahe: true
 batch_size: 16
 
 # model
-model_name: "nvidia/segformer-b0-finetuned-ade-512-512" 
+model_name: "nvidia/segformer-b1-finetuned-ade-512-512" 
 num_labels: 1
 
 # training layer : "segformer.encoder.patch_embeddings 0-3", "segformer.encoder.block.0 - 3", "decode_head"
-frozen_layers : ["segformer.encoder.patch_embeddings.0",    "segformer.encoder.patch_embeddings.1",  
-  "segformer.encoder.patch_embeddings.2",
-  "segformer.encoder.block.0", "segformer.encoder.block.1"]
+frozen_layers : ["segformer.encoder.patch_embeddings.0",    "segformer.encoder.patch_embeddings.1",
+                  "segformer.encoder.block.0", "segformer.encoder.block.1"]
