@@ -1,8 +1,9 @@
 # dataset
-image_train_dir: "../data/train_images"
-mask_train_dir: "../data/train_labels"
-image_val_dir: "../data/test_images"
-mask_val_dir: "../data/test_labels"
+
+image_train_dir: "/kaggle/input/datasets/borelgoudjou/icr-retina/train_images"
+mask_train_dir: "/kaggle/input/datasets/borelgoudjou/icr-retina/train_labels"
+image_val_dir: "/kaggle/input/datasets/borelgoudjou/icr-retina/test_images"
+mask_val_dir: "/kaggle/input/datasets/borelgoudjou/icr-retina/test_labels"
 channel: 1 # Blue most relevent
 img_size: 512
 apply_repeat: true
