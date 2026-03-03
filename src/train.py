@@ -27,8 +27,7 @@ class SegTrainer(Trainer):
         return (loss, outputs) if return_outputs else loss
 
 
-def train_segformer(config_dataset, training_args, metrics=None, compute_loss=None, 
-                    callbacks = None, optimizers = None, transforms=None):
+def train_segformer(config_dataset, training_args, callbacks = None, transforms=None):
     # Charger le modèle et le processor
     model, processor = load_segformer(
         config_dataset["model_name"], 
@@ -73,33 +72,15 @@ def train_segformer(config_dataset, training_args, metrics=None, compute_loss=No
     hf_dataset_train = HFMonaiWrapper(dataset_train, processor, transforms=transforms)
     hf_dataset_val = HFMonaiWrapper(dataset_val, processor, transforms=None)
 
-    # Choisir la métrique par défaut
-    metric = metrics if metrics else compute_metrics
-
     # Créer le trainer
-    if optimizers is not None:
-        trainer = SegTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=hf_dataset_train,
-            eval_dataset=hf_dataset_val,
-            compute_metrics=metric,
-            callbacks=callbacks,
-            optimizers=optimizers
-        )
-    else:
-        trainer = SegTrainer(
-            model=model,
-            args=training_args,
-            train_dataset=hf_dataset_train,
-            eval_dataset=hf_dataset_val,
-            compute_metrics=metric,
-            callbacks=callbacks
-        )
-
-    # Surcharger les fonctions si nécessaire
-    if compute_loss:
-        trainer.compute_loss = compute_loss
+    trainer = SegTrainer(
+        model=model,
+        args=training_args,
+        train_dataset=hf_dataset_train,
+        eval_dataset=hf_dataset_val,
+        compute_metrics=compute_metrics,
+        callbacks=callbacks
+    )
 
     # Lancer l'entraînement
-    trainer.train()
+    return trainer, model, dataset_train
