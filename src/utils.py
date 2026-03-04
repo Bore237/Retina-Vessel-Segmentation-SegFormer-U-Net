@@ -1,6 +1,7 @@
 import torch
 import torch.nn.functional as F
 from monai.metrics import MeanIoU
+from ignite.metrics import Metric
 
 miou_metric = MeanIoU(
     include_background=False,
@@ -29,3 +30,32 @@ def compute_metrics(eval_pred):
     miou_value = miou.mean().item() 
 
     return {"mIoU": miou_value}
+
+
+class MonaiIgniteMetric(Metric):
+    def __init__(self, monai_metric):
+        self.monai_metric = monai_metric
+        super().__init__()
+
+    def reset(self):
+        # Remet le compteur à zéro au début de l'époque
+        self.monai_metric.reset()
+
+    def update(self, output):
+        # Car c'est dictionaire
+        # On récupère les données traitées par 'post_transforms'
+        if isinstance(output, list):
+            # On empile les Tensors pour avoir un batch propre (B, C, H, W)
+            preds = torch.stack([x["pred"] for x in output])
+            labels = torch.stack([x["label"] for x in output])
+        else:
+            preds, labels = output["pred"], output["label"]
+            
+        # On vérifie qu'on envoie bien du binaire
+        # self.monai_metric attend (B, C, H, W)
+        self.monai_metric(y_pred=preds, y=labels)
+
+    def compute(self):
+        # Calcule la moyenne finale à la fin de l'évaluation
+        res = self.monai_metric.aggregate()
+        return res.item() if hasattr(res, 'item') else res
