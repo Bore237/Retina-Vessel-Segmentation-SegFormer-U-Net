@@ -50,7 +50,7 @@ class ICRDataset:
     @staticmethod
     # Créons un loader simple pour le masque (sans conversion de couleur ni sélection de canal)
     def load_mask_func(path):
-        mask = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        mask = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
         if mask is None: raise FileNotFoundError(path)
         # S'assurer que c'est en float32 et ajouter la dimension canal (1, H, W)
         mask = mask.astype(np.float32)
@@ -59,6 +59,7 @@ class ICRDataset:
         # IMPORTANT : Normaliser le masque en 0/1 si ce n'est pas déjà fait
         if mask.max() > 1:
             mask = mask / 255.0
+        mask = (mask > 0.5).astype(np.float32)
         return torch.from_numpy(mask)
 
 
@@ -116,7 +117,8 @@ class ICRDataset:
             transforms_list.append(Lambdad(keys=["image"], func=self.apply_CLAHE))
 
         transforms_list.extend([
-            Resized(keys=["image", "label"],  spatial_size=(self.img_size, self.img_size))
+            Resized(keys=["image", "label"],  spatial_size=(self.img_size, self.img_size),
+                    mode=("bilinear", "nearest"))
         ])
 
         if self.apply_repeat:
