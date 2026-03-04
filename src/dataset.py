@@ -59,7 +59,7 @@ class ICRDataset:
         # IMPORTANT : Normaliser le masque en 0/1 si ce n'est pas déjà fait
         if mask.max() > 1:
             mask = mask / 255.0
-        mask = (mask > 0.5).astype(np.float32)
+        mask = (mask > 0.2).astype(np.float32)
         return torch.from_numpy(mask)
 
 
