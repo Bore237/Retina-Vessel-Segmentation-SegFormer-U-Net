@@ -8,33 +8,12 @@ from monai.data import CacheDataset, DataLoader
 from torch.utils.data import Dataset
 
 def wrapper_load_grayscale_tiff(channel=1):
-    """
-    @brief Creates a loader function to read a specific channel from a TIFF image as a grayscale tensor.
-    
-    This wrapper allows you to select which channel (0=Red, 1=Green, 2=Blue) to extract from an RGB image.
-    The resulting image tensor has shape (1, H, W) for a single channel.
-    
-    @param channel (int, optional): The channel index to load (0 to 2). Default is 1 (Green channel).
-    
-    @return: A function `load_grayscale_tiff(path)` that reads the TIFF image at `path` and returns a torch tensor.
-    """
-    
     def load_grayscale_tiff(path):
-        """
-        @brief Load a TIFF image and extract the specified channel as a torch tensor.
-        
-        @param path (str): Path to the TIFF image file.
-        
-        @return: torch.Tensor of shape (1, H, W) containing the selected channel as float32.
-        
-        @raises FileNotFoundError: If the image cannot be read.
-        """
         # Read image without any change to original data
         img = np.array(cv2.imread(path, cv2.IMREAD_UNCHANGED))
         if img is None:
             raise FileNotFoundError(f"File not found or unreadable: {path}")
         
-        # Convert BGR (OpenCV default) to RGB and reorder axes to (C, H, W)
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img = img.astype(np.float32).transpose(2, 0, 1)
 
@@ -48,19 +27,9 @@ def wrapper_load_grayscale_tiff(channel=1):
     return load_grayscale_tiff
 
 class ICRDataset:
-    def __init__(
-        self,
-        image_dir,
-        mask_dir,
-        channel,
-        img_size,
-        apply_repeat=True,
-        apply_clahe=True,
-        batch_size=16,
-        cache_rate=1.0,
-        num_workers_cache=4,
-        num_workers_loader=0,
-    ):
+    def __init__(self, image_dir,  mask_dir, channel, img_size, apply_repeat=True, apply_clahe=True,
+                    batch_size=16, cache_rate=1.0, num_workers_cache=4, num_workers_loader=0 ):
+        
         self.image_dir = image_dir
         self.mask_dir = mask_dir
         self.channel = channel
@@ -78,6 +47,20 @@ class ICRDataset:
     # --------------------------------------------------
     # Utilities
     # --------------------------------------------------
+    @staticmethod
+    # Créons un loader simple pour le masque (sans conversion de couleur ni sélection de canal)
+    def load_mask_func(path):
+        mask = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+        if mask is None: raise FileNotFoundError(path)
+        # S'assurer que c'est en float32 et ajouter la dimension canal (1, H, W)
+        mask = mask.astype(np.float32)
+        if mask.ndim == 2:
+            mask = np.expand_dims(mask, axis=0)
+        # IMPORTANT : Normaliser le masque en 0/1 si ce n'est pas déjà fait
+        if mask.max() > 1:
+            mask = mask / 255.0
+        return torch.from_numpy(mask)
+
 
     @staticmethod
     def repeat_channels_tensor(img):
@@ -85,10 +68,7 @@ class ICRDataset:
             img = img.unsqueeze(0)
         elif img.ndim == 3 and img.shape[0] == 1:
             pass
-        else:
-            raise ValueError(
-                f"Expected tensor shape (H, W) or (1, H, W), got {img.shape}"
-            )
+        else: raise ValueError(f"Expected tensor shape (H, W) or (1, H, W), got {img.shape}")
 
         return img.repeat(3, 1, 1)
 
@@ -125,41 +105,25 @@ class ICRDataset:
         image_paths = [p.replace("\\", "/") for p in image_paths]
         mask_paths = [p.replace("\\", "/") for p in mask_paths]
 
-        return [
-            {"image": img, "label": msk}
-            for img, msk in zip(image_paths, mask_paths)
-        ]
+        return [{"image": img, "label": msk} for img, msk in zip(image_paths, mask_paths)]
 
     def _build_dataset(self):
-        load_retina_img = wrapper_load_grayscale_tiff(self.channel)
 
-        transforms_list = [
-            Lambdad(keys=["image", "label"], func=load_retina_img),
-        ]
+        load_image_func = wrapper_load_grayscale_tiff(self.channel)        
+        transforms_list = [Lambdad(keys=["image"], func=load_image_func), Lambdad(keys=["label"], func=self.load_mask_func)]
 
         if self.apply_clahe:
-            transforms_list.append(
-                Lambdad(keys=["image"], func=self.apply_CLAHE)
-            )
+            transforms_list.append(Lambdad(keys=["image"], func=self.apply_CLAHE))
 
         transforms_list.extend([
-            Resized(
-                keys=["image", "label"],
-                spatial_size=(self.img_size, self.img_size)
-            ),
+            Resized(keys=["image", "label"],  spatial_size=(self.img_size, self.img_size))
         ])
 
         if self.apply_repeat:
             transforms_list.append(
-                Lambdad(
-                    keys=["image"],
-                    func=lambda x: self.repeat_channels_tensor(x)
-                )
-            )
+                Lambdad(keys=["image"], func=lambda x: self.repeat_channels_tensor(x)))
 
-        transforms_list.append(
-            EnsureTyped(keys=["image", "label"])
-        )
+        transforms_list.append(EnsureTyped(keys=["image", "label"]))
 
         transforms_cacheable = Compose(transforms_list)
 
