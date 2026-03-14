@@ -48,7 +48,7 @@ This project focuses on **automatic segmentation of blood vessels in retina imag
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/username/Retina-Vessel-Segmentation-SegFormer-U-Net.git
+git clone https://github.com/Bore237/Retina-Vessel-Segmentation-SegFormer-U-Net
 cd Retina-Vessel-Segmentation-SegFormer-U-Net
 ```
 

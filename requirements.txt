@@ -13,6 +13,7 @@ torchvision
 monai
 transformers
 accelerate
+pytorch-ignite
 #timm>=0.9.0  # SegFormer implementation
 
 # Notebook
